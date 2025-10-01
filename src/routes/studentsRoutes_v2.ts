@@ -6,6 +6,10 @@ import {
 } from "../libs/zodValidators.js";
 
 import type { Student, Course } from "../libs/types.js";
+import { authenticateToken } from "../middlewares/authenMiddleware.js";
+import { checkRoles } from "../middlewares/checkRolesMiddleware.js";
+
+import { type CustomRequest } from "../libs/types.js";
 
 // import database
 import { students, courses } from "../db/db.js";
@@ -42,10 +46,22 @@ router.get("/", (req: Request, res: Response) => {
 });
 
 // GET /api/v2/students/{studentId}
-router.get("/:studentId", (req: Request, res: Response) => {
+router.get(
+  "/:studentId",
+  authenticateToken,
+  checkRoles,
+  (req: Request, res: Response) => {
   try {
     const studentId = req.params.studentId;
     const result = zStudentId.safeParse(studentId);
+    const payload = (req as CustomRequest).user;
+
+    if (payload?.role === "STUDENT" && payload?.studentId !== studentId) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden access",
+        });
+      }
 
     if (!result.success) {
       return res.status(400).json({
